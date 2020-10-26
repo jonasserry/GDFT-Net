@@ -4,7 +4,12 @@ import matplotlib.pyplot as plt
 import pickle
 from collections import defaultdict
 
+# pylint: disable=E1130
+
 print("Net Version: 1.62")
+
+
+#FIX THESE IMPORTS
 
 from tensorflow.keras import backend as keras
 from tensorflow.keras.models import *
@@ -137,7 +142,7 @@ class GDFT_Net():
         axs[1, 0].set_ylabel("OPD(Wavelengths)",fontsize=14)
         axs[1, 0].set_xlabel(r"Time/$t_0$",fontsize=14)
 
-        axs[0, 1].imshow(First_Pass_Image[:,:,0], cmap=plt.get_cmap('gray_r'),origin="lower",aspect=aspect,extent=(0,self.dimensions[0],-self.dmax,self.dmax))
+        axs[0, 1].imshow(First_Pass_Image[:,:,0], cmap=plt.get_cmap('gray_r'),origin="lower",aspect=aspect,extent=(0,self.dimensions[0],(-self.dmax),self.dmax))
         axs[0, 1].set_title("First Pass Network Prediction",fontsize=14)
 
         x = np.linspace(0,self.numSteps/self.t0,len(Second_Pass_Image))
