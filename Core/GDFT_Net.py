@@ -6,12 +6,14 @@ from collections import defaultdict
 
 # pylint: disable=E1130
 
-print("Net Version: 1.62")
+print("Net Version: 1.72")
 
 
 #FIX THESE IMPORTS
-
-from tensorflow.keras import backend as k
+import tensorflow as tf
+from tensorflow.keras.callbacks import ModelCheckpoint
+from tensorflow.keras import backend 
+from tensorflow.keras import Input
 from tensorflow.keras.models import Model, load_model
 from tensorflow.keras.layers import Conv2D,MaxPooling2D,Dropout,concatenate, Flatten, Dense, UpSampling2D
 from tensorflow.keras.optimizers import Adam
@@ -25,7 +27,7 @@ def load_GDFT_Net(path):
 
 class GDFT_Net():
 
-    def __init__(self,M1_path,M2_path,dimensions):
+    def __init__(self,M1_path,M2_path,dimensions,Net_Path=None):
         """M1,M2 should be paths
         Dimensions written as (x,y)
         """
@@ -34,7 +36,16 @@ class GDFT_Net():
         self.M1 = None
         self.M2 = None
         self.dimensions = dimensions
-        self.path = None
+        self.path = Net_Path
+
+        self.P1_val_loss = []
+        self.P1_loss = []
+        self.P1_epochs_trained = 0
+        self.P1_nN = None
+        self.P2_val_loss = []
+        self.P2_loss = []
+        self.P2_epochs_trained = 0
+        self.P2_nN = None
 
         self.numSteps = None
         self.t0 = None
@@ -46,6 +57,7 @@ class GDFT_Net():
         self.dmax=None
         
         self.RMSEs = defaultdict(list)
+        self.errors = defaultdict(list)
         self.standard_dev_delays = None
 
         print("Remember: Load Models")
@@ -70,36 +82,39 @@ class GDFT_Net():
     def load_models(self):
         self.load_P1_Model()
         self.load_P2_Model()
-
-    def process_Images(self,images,verbose=0):
-        First_Pass_Images = self.M1.predict(images,verbose)
-        Second_Pass_Images = self.M2.predict(First_Pass_Images,verbose)
-        return(First_Pass_Images,Second_Pass_Images)
-
-    def process_Image(self,image,verbose=0):
-        P1_Image = self.M1.predict(np.reshape(image,[1] + list(image.shape)),verbose)
-        P2_Image = self.M2.predict(P1_Image,verbose)
-        return(P1_Image[0],P2_Image[0])
-
-    def convert_Data_for_P2(self,data_set):
-        """returns shuffled P2 data from given data set"""
+    
+    def check_if_loaded(self):
         if self.M1 == None:
             self.load_P1_Model()
-        images,_,Labels_1D = data_set.get_Shuffled_Data()
-        P2_images = self.M1.predict(images,verbose=1)
+        if self.M2 == None:
+            self.load_P2_Model()
 
-        return(P2_images,(Labels_1D+self.dimensions[1]/2)/self.dimensions[1])
+    def create_P1_Model(self,nN):
+        self.P1_nN = nN
+        self.M1 = UNet_P1(input_size=(self.dimensions[1],self.dimensions[0],1),nN=nN) 
+    
+    def train_P1(self,DS,epochs=10,batch_size=16,val_split=0.2):
+        assert self.M1 != None,"No Model Loaded"
 
-    def convert_this_data_for_P2(self,images,Labels_1D):
-        """returns shuffled P2 data from given data set"""
-        if self.M1 == None:
-            self.load_P1_Model()
-        P2_images = self.M1.predict(images,verbose=1)
+        train_images, train_labels, _ = DS.get_Shuffled_Data()
 
-        return(P2_images,(Labels_1D+self.dimensions[1]/2)/self.dimensions[1])
+        checkpoint = ModelCheckpoint(self.M1_path,monitor="val_loss", save_best_only=True,save_weights_only=False,verbose=1)
+        callbacks_list = [checkpoint]
+        history = self.M1.fit(train_images, train_labels,batch_size=batch_size, epochs=epochs, callbacks=callbacks_list, validation_split=val_split, verbose = 1)
+        self.P1_val_loss.extend(history.history['val_loss'])
+        self.P1_loss.extend(history.history['loss'])
+        self.P1_epochs_trained += epochs
 
+        plt.figure()
+        plt.plot(history.history['loss'],label="test_loss")
+        plt.plot(history.history['val_loss'],label="val_loss")
+        plt.xlabel("epoch")
+        plt.ylabel("Loss")
+        plt.legend()
+    
     def test_P1(self,SNR,fs=(10,10),aspect="auto"):
-        self.load_P1_Model()
+        #assert self.M1 != None,"No Model Loaded"
+
         raw_image, label_2d, _ = GDFT_Data.Create_Image(self.numSteps, self.dimensions, self.t0 , self.wavenumberRange, self.numChan, self.numCoherent, self.numIncoherent, SNR,self.numSkip)
         p1_pred = self.M1.predict(np.reshape(raw_image,[1] + list(raw_image.shape)))
         self.M1.evaluate(np.reshape(raw_image,[1] + list(raw_image.shape)),np.reshape(label_2d,[1] + list(label_2d.shape)),verbose=1)
@@ -113,11 +128,51 @@ class GDFT_Net():
         plt.figure(figsize=fs)
         plt.imshow(label_2d[:,:,0], cmap=plt.get_cmap('gray_r'),origin="lower",aspect=aspect)
 
-        
+    
+    def create_P2_Model(self,nN):
+        self.P2_nN = nN
+        self.M2 = UNet_P2(input_size=(self.dimensions[1],self.dimensions[0],1),nN=nN) 
+    
+    def convert_Data_for_P2(self,DS):
+        """returns shuffled P2 data from given data set"""
+        self.load_P1_Model()
+        images,_,Labels_1D = DS.get_Shuffled_Data()
+        P2_images = self.M1.predict(images,verbose=1)
+
+        return(P2_images,(Labels_1D+self.dimensions[1]/2)/self.dimensions[1])
+
+    def train_P2(self,DS,epochs=10,batch_size=16,val_split=0.2):
+        self.check_if_loaded()
+
+        train_images, train_labels = self.convert_Data_for_P2(DS)
+
+        checkpoint = ModelCheckpoint(self.M2_path,monitor="val_loss", save_best_only=True,save_weights_only=False,verbose=1)
+        callbacks_list = [checkpoint]
+        history = self.M2.fit(train_images, train_labels,batch_size=batch_size, epochs=epochs, callbacks=callbacks_list, validation_split=val_split,verbose = 1)
+        self.P2_val_loss.extend(history.history['val_loss'])
+        self.P2_loss.extend(history.history['loss'])
+        self.P2_epochs_trained += epochs
+
+        plt.figure()
+        plt.plot(history.history['loss'],label="test_loss")
+        plt.plot(history.history['val_loss'],label="val_loss")
+        plt.xlabel("epoch")
+        plt.ylabel("Loss")
+        plt.legend()
+
+    def process_Images(self,images,verbose=0):
+        First_Pass_Images = self.M1.predict(images,verbose)
+        Second_Pass_Images = self.M2.predict(First_Pass_Images,verbose)
+        return(First_Pass_Images,Second_Pass_Images)
+
+    def process_Image(self,image,verbose=0):
+        P1_Image = self.M1.predict(np.reshape(image,[1] + list(image.shape)),verbose)
+        P2_Image = self.M2.predict(P1_Image,verbose)
+        return(P1_Image[0],P2_Image[0])
 
 
     def plot_Example(self,raw_image,label_2d,label_1d,SNR=1.0,fs=(10,10),aspect="auto"):
-        
+        self.check_if_loaded()
 
         First_Pass_Image,Second_Pass_Image = self.process_Image(raw_image,verbose=0)
 
@@ -158,6 +213,7 @@ class GDFT_Net():
         self.plot_Example(raw_image,label_2d,label_1d,SNR,fs,aspect="auto")
 
     def run_RMSE_Testing(self,numImages=None,SNRs=None,DS=None):
+        self.check_if_loaded()
         corr = []
         i=0
         if DS != None:
@@ -169,8 +225,10 @@ class GDFT_Net():
             else:
                 raw_images,_,labels_1D =  DS.get_Data(with_SNR=SNR)
             prediction = self.process_Images(raw_images,verbose=0)[1]*self.numChan*2-self.numChan
-            rmse = np.sqrt(np.mean(((prediction-labels_1D)**2),axis=1))
+            errors = prediction-labels_1D
+            rmse = np.sqrt(np.mean(((errors)**2),axis=1))
             self.RMSEs[SNR].extend(rmse)
+            self.errors[SNR].extend(errors)
 
             print("SNR: {0:3.2f} RMSE: {1:3.2f} STD: {2:3.2f}".format(SNR,np.mean(rmse),np.std(rmse)))
 
@@ -295,7 +353,7 @@ def UNet_P1 (pretrained_weights = None,input_size = (256,256,1),nN=64):
 
 def UNet_P2 (pretrained_weights = None,input_size = (256,256,1),nN = 64):
     
-    inputs = k.Input(input_size)
+    inputs = Input(input_size)
     conv1 = Conv2D(nN, 3, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal')(inputs)
     conv1 = Conv2D(nN, 3, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal')(conv1)
     pool1 = MaxPooling2D(pool_size=(2, 2))(conv1)
