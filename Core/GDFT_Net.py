@@ -85,7 +85,7 @@ class GDFT_Net():
         """returns shuffled P2 data from given data set"""
         if self.M1 == None:
             self.load_P1_Model()
-        images,Labels_2D,Labels_1D = data_set.get_Shuffled_Data()
+        images,_,Labels_1D = data_set.get_Shuffled_Data()
         P2_images = self.M1.predict(images,verbose=1)
 
         return(P2_images,(Labels_1D+self.dimensions[1]/2)/self.dimensions[1])
@@ -131,7 +131,7 @@ class GDFT_Net():
 
         #Plotting
         
-        fig, axs = plt.subplots(nrows=2, ncols=2, figsize=fs,sharey=True)
+        _, axs = plt.subplots(nrows=2, ncols=2, figsize=fs,sharey=True)
 
         axs[0, 0].imshow(raw_image[:,:,0], cmap=plt.get_cmap('gray_r'),origin="lower",aspect=aspect,extent=(0,self.dimensions[0],(-self.dmax),self.dmax))
         axs[0, 0].set_title(r"GDFT Image ($SNR_0$ = {0:3.2f})".format(SNR),fontsize=14)
