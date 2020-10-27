@@ -5,22 +5,24 @@ import cv2
 import pickle
 import numpy as np
 import matplotlib.pyplot as plt
-
 import scipy.signal as sig
 
 from Core import GDFT_Sim as Sim
 
 print("Data Version: 1.61")
 
-
 ###---------------- Image Creation --------------------
 def DownSample(image,dimensions):
+    """
+    Takes image and downsamples and resizes to given dimensions using openCV
+    Returns image with dimensions (dimensions[0],dimensions[1],1)
+    """
     x = cv2.resize(image,dimensions,interpolation = cv2.INTER_AREA) #Interpolation type?
     x = cv2.normalize(x, None, alpha=0, beta=1, norm_type=cv2.NORM_MINMAX)
     return np.reshape(x,list(x.shape) + [1])
 
 def Create_Image_From_Delays(delays,wavenumberRange,numChan,numCoherent,numIncoherent,SNR,dimensions,numSkip,numSteps=None,t0=None):
-
+    """ Returns raw GDFT image, 2D Mask, and 1D Label from given set of delays using specified params"""
     raw_image,raw_label = Sim.modifiedGDT(delays,wavenumberRange,numChan,numCoherent,numIncoherent,SNR)
     raw_image = DownSample(raw_image[:,numSkip:],dimensions)
     raw_label = DownSample(raw_label[:,numSkip:],dimensions)
@@ -28,12 +30,12 @@ def Create_Image_From_Delays(delays,wavenumberRange,numChan,numCoherent,numIncoh
     return raw_image,raw_label,decimated
 
 def Create_Image(numSteps = 1024*128, dimensions =(256,256), t0 = 10, wavenumberRange=(0.8,1.2), numChan = 100, numCoherent=16, numIncoherent=25, SNR=1,numBatches=1,numSkip=20):
+    """Returns raw GDFT image, 2D Mask, and 1D Label created using provided parameters"""
     delays = Sim.von_karman_temporal_samples(1024*1024,t0,T0=1e4, two_telescopes=True)[0:numSteps]
     return(Create_Image_From_Delays(delays,wavenumberRange,numChan,numCoherent,numIncoherent,SNR,dimensions,numSkip))
 
-
 def Create_Images(NumImages, numSteps = 1024*128, dimensions =(256,256), t0 = 10, wavenumberRange=(0.8,1.2), numChan = 100, numCoherent=16, numIncoherent=25, SNR=1,numBatches=1,numSkip=20,numSteps_simulated=1024*1024,print_flag=True):
-    """Returns specified number of U-Net Training Samples with given GDT parameters"""
+    """Returns specified number of raw GDFT image, 2D Mask, and 1D Label created using provided parameters"""
     Images = np.empty((NumImages,dimensions[1],dimensions[0],1))
     Labels_2D = np.empty((NumImages,dimensions[1],dimensions[0],1))
     Labels_1D = np.empty((NumImages,dimensions[0]))
@@ -41,7 +43,6 @@ def Create_Images(NumImages, numSteps = 1024*128, dimensions =(256,256), t0 = 10
     start_time = time.time()
 
     Images_per_simulated_delays = int(numSteps_simulated/numSteps)
-    
 
     delays = Sim.von_karman_temporal_samples(numSteps_simulated,t0,T0=1e4, two_telescopes=True)
 
@@ -71,7 +72,7 @@ def Create_Images(NumImages, numSteps = 1024*128, dimensions =(256,256), t0 = 10
     return (Images,Labels_2D,Labels_1D)
 
 def ConvertForNextNetwork(train_labels):
-    """Convert 2D Labels into 1D Labels"""
+    """Convert 2D Labels into 1D Labels simply using argmax. NOTE: this is now deprecated"""
     CorrectFeature = np.empty((train_labels.shape[0],train_labels.shape[2]))
 
     for i in range(train_labels.shape[0]):
@@ -80,8 +81,8 @@ def ConvertForNextNetwork(train_labels):
     return (CorrectFeature)
 
 def Convert_to_1D_Label(label):
+    """Convert 2D Label into 1D Label simply using argmax. NOTE: this is now deprecated"""
     return(np.reshape(np.argmax(label,0),-1)/label.shape[0])
-
 
 def Decimate_Delays(delays,x_dim):
     """Returns decimated (and filtered) delays with dimension given by x_dim"""
@@ -92,9 +93,8 @@ def Decimate_Delays(delays,x_dim):
 
 ###---------------- Data Set Creation --------------------
 
-
 def create_Data_Set(id,NumImages,SNRs,t0=16, numSteps = 1024*128, dimensions =(256,256), wavenumberRange=(1.5,2.0), numChan = 100, numCoherent=16, numIncoherent=25,numSkip=0,**kwargs):
-    """Returns variable SNR and t0 training data with provided distribution and GDT parameters"""
+    """Returns variable SNR GDFT Data Set with provided SNR distribution and GDFT parameters"""
     assert(len(NumImages)==len(SNRs))
     Images = np.empty((np.sum(NumImages),dimensions[1],dimensions[0],1))
     Labels_2D = np.empty((np.sum(NumImages),dimensions[1],dimensions[0],1))
@@ -111,14 +111,17 @@ def create_Data_Set(id,NumImages,SNRs,t0=16, numSteps = 1024*128, dimensions =(2
     return GDFT_Data_Set(id,Images,Labels_2D,Labels_1D,NumImages,SNRs,t0,numChan,dimensions,numSteps,wavenumberRange,numCoherent,numIncoherent,numSkip)
 
 def create_Data_Sets(id,NumImages,SNRs,t0=10, numSteps = 128000, y_dim=64,x_dims=[16,32,64,128,256,512], wavenumberRange=(1.5,2.0), numChan = 32, numCoherent=10, numIncoherent=25,numSkip=0,**kwargs):
-    """Returns variable SNR and t0 training data with provided distribution and GDT parameters"""
+    """Returns variable SNR GDFT Data Sets. A single set of GDFT samples is created using the final provided dimension (x_dims[-1]).
+    This set is chopped up to create data sets at other provided dimensions. """
     assert(len(NumImages)==len(SNRs))
     Images = np.empty((np.sum(NumImages),y_dim,x_dims[-1],1))
     Labels_2D = np.empty((np.sum(NumImages),y_dim,x_dims[-1],1))
     Labels_1D = np.empty((np.sum(NumImages),x_dims[-1]))
+    
+    
     n=0
     i=0
-    while i<len(NumImages):
+    while i<len(NumImages):         # Create Images at maximum dimension
         images,labels_2D,labels_1D = Create_Images(NumImages[i],SNR = SNRs[i],numSteps=numSteps, dimensions = (x_dims[-1],y_dim), t0=t0, wavenumberRange = wavenumberRange, numChan = numChan, numCoherent=numCoherent, numIncoherent=numIncoherent,numBatches=(len(NumImages)-i),numSkip=numSkip)
         Images[n:n+NumImages[i]] = images
         Labels_2D[n:n+NumImages[i]] = labels_2D
@@ -127,7 +130,7 @@ def create_Data_Sets(id,NumImages,SNRs,t0=10, numSteps = 128000, y_dim=64,x_dims
         i+=1
 
     Sets = []
-    for x in x_dims:
+    for x in x_dims:    # Chop images into smaller dimensions
         images = []
         labels_2d =[]
         labels_1d = []
@@ -144,10 +147,7 @@ def create_Data_Sets(id,NumImages,SNRs,t0=10, numSteps = 128000, y_dim=64,x_dims
     return Sets
 
 
-def load_Data_Set(path):
-    with open(path, 'rb') as input:
-        Set = pickle.load(input)
-    return(Set)
+###---------------- GDFT Data Set --------------------
 
 
 class GDFT_Data_Set():
@@ -191,9 +191,6 @@ class GDFT_Data_Set():
         print("------------------------ID: %s ----------------------------"%(self.id))
         print("numChan {0}".format(self.numChan))
         print("FINISH THIS")
-
-    def extend_Set(self):
-        print("ToDo")
     
     def get_Data(self,with_SNR=None):
         "Returns Unshuffled Images and Labels,"
@@ -243,3 +240,9 @@ class GDFT_Data_Set():
         plt.suptitle(title)
 
     
+
+
+def load_Data_Set(path):
+    with open(path, 'rb') as input:
+        Set = pickle.load(input)
+    return(Set)

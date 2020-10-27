@@ -11,10 +11,10 @@ print("Net Version: 1.62")
 
 #FIX THESE IMPORTS
 
-from tensorflow.keras import backend as keras
-from tensorflow.keras.models import *
-from tensorflow.keras.layers import *
-from tensorflow.keras.optimizers import *
+from tensorflow.keras import backend as k
+from tensorflow.keras.models import Model, load_model
+from tensorflow.keras.layers import Conv2D,MaxPooling2D,Dropout,concatenate, Flatten, Dense, UpSampling2D
+from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.utils import plot_model
 
 
@@ -85,7 +85,7 @@ class GDFT_Net():
         """returns shuffled P2 data from given data set"""
         if self.M1 == None:
             self.load_P1_Model()
-        images,Labels_2D,Labels_1D = data_set.get_Shuffled_Data()
+        images,_,Labels_1D = data_set.get_Shuffled_Data()
         P2_images = self.M1.predict(images,verbose=1)
 
         return(P2_images,(Labels_1D+self.dimensions[1]/2)/self.dimensions[1])
@@ -131,7 +131,7 @@ class GDFT_Net():
 
         #Plotting
         
-        fig, axs = plt.subplots(nrows=2, ncols=2, figsize=fs,sharey=True)
+        _, axs = plt.subplots(nrows=2, ncols=2, figsize=fs,sharey=True)
 
         axs[0, 0].imshow(raw_image[:,:,0], cmap=plt.get_cmap('gray_r'),origin="lower",aspect=aspect,extent=(0,self.dimensions[0],(-self.dmax),self.dmax))
         axs[0, 0].set_title(r"GDFT Image ($SNR_0$ = {0:3.2f})".format(SNR),fontsize=14)
@@ -207,13 +207,18 @@ class GDFT_Net():
     def load_Data_from_file(self,path):
         P = np.load(path,allow_pickle=True)
         self.RMSEs.update(P.item())
-
-    def save_Net(self,filename):
+        
+    def save_Net(self,filename=None):
         self.M1 = None
         self.M2 = None
+
+        if filename is None:
+            filename = self.path
+        else:
+            self.path=filename
+        
         with open(filename, 'wb') as output:  
             pickle.dump(self, output, pickle.HIGHEST_PROTOCOL)
-        self.path=filename
         print("Saved as: " + self.path)
         print("Remember to reload models")
 
@@ -290,7 +295,7 @@ def UNet_P1 (pretrained_weights = None,input_size = (256,256,1),nN=64):
 
 def UNet_P2 (pretrained_weights = None,input_size = (256,256,1),nN = 64):
     
-    inputs = Input(input_size)
+    inputs = k.Input(input_size)
     conv1 = Conv2D(nN, 3, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal')(inputs)
     conv1 = Conv2D(nN, 3, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal')(conv1)
     pool1 = MaxPooling2D(pool_size=(2, 2))(conv1)
