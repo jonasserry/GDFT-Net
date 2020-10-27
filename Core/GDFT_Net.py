@@ -11,8 +11,8 @@ print("Net Version: 1.62")
 
 #FIX THESE IMPORTS
 
-from tensorflow.keras import backend as keras
-from tensorflow.keras.models import Model, Input, load_model
+from tensorflow.keras import backend as k
+from tensorflow.keras.models import Model, load_model
 from tensorflow.keras.layers import Conv2D,MaxPooling2D,Dropout,concatenate, Flatten, Dense, UpSampling2D
 from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.utils import plot_model
@@ -211,11 +211,14 @@ class GDFT_Net():
     def save_Net(self,filename=None):
         self.M1 = None
         self.M2 = None
+
         if filename is None:
             filename = self.path
+        else:
+            self.path=filename
+        
         with open(filename, 'wb') as output:  
             pickle.dump(self, output, pickle.HIGHEST_PROTOCOL)
-        self.path=filename
         print("Saved as: " + self.path)
         print("Remember to reload models")
 
@@ -292,7 +295,7 @@ def UNet_P1 (pretrained_weights = None,input_size = (256,256,1),nN=64):
 
 def UNet_P2 (pretrained_weights = None,input_size = (256,256,1),nN = 64):
     
-    inputs = Input(input_size)
+    inputs = k.Input(input_size)
     conv1 = Conv2D(nN, 3, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal')(inputs)
     conv1 = Conv2D(nN, 3, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal')(conv1)
     pool1 = MaxPooling2D(pool_size=(2, 2))(conv1)
