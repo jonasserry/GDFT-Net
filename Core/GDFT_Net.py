@@ -12,9 +12,9 @@ print("Net Version: 1.62")
 #FIX THESE IMPORTS
 
 from tensorflow.keras import backend as keras
-from tensorflow.keras.models import *
-from tensorflow.keras.layers import *
-from tensorflow.keras.optimizers import *
+from tensorflow.keras.models import Model, Input, load_model
+from tensorflow.keras.layers import Conv2D,MaxPooling2D,Dropout,concatenate, Flatten, Dense, UpSampling2D
+from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.utils import plot_model
 
 
@@ -207,10 +207,12 @@ class GDFT_Net():
     def load_Data_from_file(self,path):
         P = np.load(path,allow_pickle=True)
         self.RMSEs.update(P.item())
-
-    def save_Net(self,filename):
+        
+    def save_Net(self,filename=None):
         self.M1 = None
         self.M2 = None
+        if filename is None:
+            filename = self.path
         with open(filename, 'wb') as output:  
             pickle.dump(self, output, pickle.HIGHEST_PROTOCOL)
         self.path=filename
