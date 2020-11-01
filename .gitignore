@@ -360,3 +360,13 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+
+
+**/Saved_Models
+**/Training_Data
+**/Saved_Data
+
+.DS_Store
+
+**/Core/__pycache__
+
