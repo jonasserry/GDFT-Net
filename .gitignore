@@ -372,3 +372,4 @@ FodyWeavers.xsd
 **/Core/__pycache__
 **.pyc
 
+GDFT-Net.code-workspace
