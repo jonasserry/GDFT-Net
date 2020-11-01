@@ -364,9 +364,11 @@ FodyWeavers.xsd
 
 **/Saved_Models
 **/Training_Data
-**/Saved_Data
+**/Saved_Data/Test_Data
+**/Saved_Data/Training_Data
 
 .DS_Store
 
 **/Core/__pycache__
+**.pyc
 
