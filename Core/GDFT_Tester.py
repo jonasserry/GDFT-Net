@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 import pickle
 from collections import defaultdict
 
-print("Tester Version: 1.00")
+print("Tester Version: 1.02")
 
 class GDFT_Net_Tester():
 
@@ -54,12 +54,24 @@ class GDFT_Net_Tester():
         means = []
         SNRs = []
         stds = []
-        for SNR in sorted(self.RMSEs.keys()):
+        for SNR in sorted(self.errors.keys()):
             SNRs.append(SNR)
-            means.append(np.mean(self.RMSEs[SNR]))
-            stds.append(np.std(self.RMSEs[SNR]))
+            rmses = np.sqrt(np.mean((np.array(self.errors[SNR])**2),axis=1))
+            means.append(np.mean(rmses))
+            stds.append(np.std(rmses))
         
         return(np.array(means),np.array(SNRs),np.array(stds),self.standard_dev_delays)
+    
+    def get_RMSE_at_index(self,i):
+        means = []
+        SNRs = []
+        stds = []
+        for SNR in sorted(self.errors.keys()):
+            SNRs.append(SNR)
+            rmses = np.sqrt(np.mean((np.array(self.errors[SNR][:][i])**2),axis=1))
+            means.append(np.mean(rmses))
+            stds.append(np.std(rmses))
+        return(np.array(means),np.array(SNRs),np.array(stds))
     
     def plot_RMSE_Data(self,fs=(8,8),corrected=True):
         means,SNRs,stds,corr = self.get_RMSE_Data()
@@ -69,9 +81,12 @@ class GDFT_Net_Tester():
         plt.xlabel("SNR")
         plt.ylabel("Deviation")
 
+    """
     def save_Data_to_file(self,path):
         np.save(path, np.array(dict(self.RMSEs)),allow_pickle=True)
     
     def load_Data_from_file(self,path):
         P = np.load(path,allow_pickle=True)
         self.RMSEs.update(P.item())
+
+    """

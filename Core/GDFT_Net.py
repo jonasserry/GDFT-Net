@@ -47,7 +47,7 @@ class GDFT_Net():
         self.P2_epochs_trained = 0
         self.P2_nN = None
 
-        self.numSteps = None
+        self.numSteps = None # This would be better done with a simple params dict that can then be passed to all GDFT_Data functions
         self.t0 = None
         self.numChan = None
         self.wavenumberRange = None
@@ -91,6 +91,9 @@ class GDFT_Net():
 
     def create_P1_Model(self,nN):
         self.P1_nN = nN
+        self.P1_val_loss = []
+        self.P1_loss = []
+        self.P1_epochs_trained = 0
         self.M1 = UNet_P1(input_size=(self.dimensions[1],self.dimensions[0],1),nN=nN) 
     
     def train_P1(self,DS,epochs=10,batch_size=16,val_split=0.2):
@@ -131,6 +134,10 @@ class GDFT_Net():
     
     def create_P2_Model(self,nN):
         self.P2_nN = nN
+        self.P2_val_loss = []
+        self.P2_loss = []
+        self.P2_epochs_trained = 0
+
         self.M2 = UNet_P2(input_size=(self.dimensions[1],self.dimensions[0],1),nN=nN) 
     
     def convert_Data_for_P2(self,DS):
@@ -280,7 +287,7 @@ class GDFT_Net():
         print("Saved as: " + self.path)
         print("Remember to reload models")
 
-    def print_Network_Details(self):
+    def describe_Net(self):
         print("ToDo")
 
 
