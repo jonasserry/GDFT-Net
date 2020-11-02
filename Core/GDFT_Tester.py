@@ -39,7 +39,7 @@ class GDFT_Net_Tester():
             prediction = self.Net.process_Images(raw_images,verbose=0)[1]*self.Net.numChan*2-self.Net.numChan
             errors = prediction-labels_1D
             rmse = np.sqrt(np.mean(((errors)**2),axis=1))
-            self.errors[SNR].extend(errors)
+            self.errors[round(SNR,2)].extend(errors)
             print("SNR: {0:3.2f} RMSE: {1:3.2f} STD: {2:3.2f}".format(SNR,np.mean(rmse),np.std(rmse)))
 
             corr.append(np.sqrt(np.mean(((labels_1D)**2))))
@@ -60,33 +60,48 @@ class GDFT_Net_Tester():
             means.append(np.mean(rmses))
             stds.append(np.std(rmses))
         
-        return(np.array(means),np.array(SNRs),np.array(stds),self.standard_dev_delays)
+        return(np.array(SNRs),np.array(means),np.array(stds))
     
-    def get_RMSE_at_index(self,i):
+    def get_error_at_index(self,i):
         means = []
         SNRs = []
         stds = []
         for SNR in sorted(self.errors.keys()):
             SNRs.append(SNR)
-            rmses = np.sqrt(np.mean((np.array(self.errors[SNR][:][i])**2),axis=1))
-            means.append(np.mean(rmses))
-            stds.append(np.std(rmses))
-        return(np.array(means),np.array(SNRs),np.array(stds))
+            err = np.abs(np.array(self.errors[SNR])[:,i])
+            means.append(np.mean(err))
+            stds.append(np.std(err))
+        return(np.array(SNRs),np.array(means),np.array(stds))
     
-    def plot_RMSE_Data(self,fs=(8,8),corrected=True):
-        means,SNRs,stds,corr = self.get_RMSE_Data()
-        if not corrected or corr == None: corr = 1.0
+    def get_error_variation_at_SNR(self,SNR):
+        means = []
+        inds =[]
+        stds = []
+        for i in range(self.Net.dimensions[0]):
+            inds.append(i)
+            err = np.abs(np.array(self.errors[SNR])[:,i])
+            means.append(np.mean(err))
+            stds.append(np.std(err))
+        return(np.array(inds),np.array(means),np.array(stds))
+
+    
+    def plot_this_data(self,SNRs,means,stds,fs=(8,8),corr=1):
         plt.figure(figsize=fs)
         plt.errorbar(SNRs,means/corr,yerr=stds/corr,capsize=3,elinewidth=0.5,c ="black", ecolor="Black") 
         plt.xlabel("SNR")
         plt.ylabel("Deviation")
 
-    """
-    def save_Data_to_file(self,path):
-        np.save(path, np.array(dict(self.RMSEs)),allow_pickle=True)
+    def save_data_to_file(self,path):
+        np.save(path, np.array(dict(self.errors)),allow_pickle=True)
     
-    def load_Data_from_file(self,path):
+    def load_data_from_file(self,path):
         P = np.load(path,allow_pickle=True)
-        self.RMSEs.update(P.item())
+        self.errors.update(P.item())
+    
+    def save(self,path=None):
+        if not path:
+            path = self.Path
+        with open(path, 'wb') as output:  
+            pickle.dump(self, output, pickle.HIGHEST_PROTOCOL)
 
-    """
+

@@ -140,9 +140,10 @@ class GDFT_Net():
 
         self.M2 = UNet_P2(input_size=(self.dimensions[1],self.dimensions[0],1),nN=nN) 
     
-    def convert_Data_for_P2(self,DS):
+    def convert_Data_for_P2(self,DS,reload_P1=True):
         """returns shuffled P2 data from given data set"""
-        self.load_P1_Model()
+        if reload_P1 or not self.M1:
+            self.load_P1_Model()
         images,_,Labels_1D = DS.get_Shuffled_Data()
         P2_images = self.M1.predict(images,verbose=1)
 
@@ -218,7 +219,7 @@ class GDFT_Net():
     def plot_random_Example(self,SNR,fs=(10,10),aspect="auto"):
         raw_image, label_2d, label_1d = GDFT_Data.Create_Image(self.numSteps, self.dimensions, self.t0 , self.wavenumberRange, self.numChan, self.numCoherent, self.numIncoherent, SNR,self.numSkip)
         self.plot_Example(raw_image,label_2d,label_1d,SNR,fs,aspect="auto")
-
+"""
     def run_RMSE_Testing(self,numImages=None,SNRs=None,DS=None):
         self.check_if_loaded()
         corr = []
@@ -272,7 +273,7 @@ class GDFT_Net():
     def load_Data_from_file(self,path):
         P = np.load(path,allow_pickle=True)
         self.RMSEs.update(P.item())
-        
+"""   
     def save_Net(self,filename=None):
         self.M1 = None
         self.M2 = None
