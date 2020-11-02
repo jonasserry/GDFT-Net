@@ -3,6 +3,9 @@
 ##
 ## Get latest from https://github.com/github/gitignore/blob/master/VisualStudio.gitignore
 
+
+/__pycache__/
+
 # User-specific files
 *.rsuser
 *.suo
@@ -356,9 +359,14 @@ FodyWeavers.xsd
 **/Saved_Data/Test_Data
 **/Saved_Data/Training_Data
 
-.DS_Store
+*.DS_Store
 
-**/Core/__pycache__
-**.pyc
 
 GDFT-Net.code-workspace
+Core/__pycache__/GDFT_Data.cpython-36.pyc
+Core/__pycache__/GDFT_Data.cpython-37.pyc
+Core/__pycache__/GDFT_Net.cpython-36.pyc
+Core/__pycache__/GDFT_Net.cpython-37.pyc
+Core/__pycache__/GDFT_Sim.cpython-37.pyc
+Core/__pycache__/GDFT_Tester.cpython-37.pyc
+.vscode/settings.json
