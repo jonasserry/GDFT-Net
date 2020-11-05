@@ -105,3 +105,5 @@ class GDFT_Net_Tester():
             pickle.dump(self, output, pickle.HIGHEST_PROTOCOL)
 
 
+
+for x in range
