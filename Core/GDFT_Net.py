@@ -219,61 +219,7 @@ class GDFT_Net():
     def plot_random_Example(self,SNR,fs=(10,10),aspect="auto"):
         raw_image, label_2d, label_1d = GDFT_Data.Create_Image(self.numSteps, self.dimensions, self.t0 , self.wavenumberRange, self.numChan, self.numCoherent, self.numIncoherent, SNR,self.numSkip)
         self.plot_Example(raw_image,label_2d,label_1d,SNR,fs,aspect="auto")
-"""
-    def run_RMSE_Testing(self,numImages=None,SNRs=None,DS=None):
-        self.check_if_loaded()
-        corr = []
-        i=0
-        if DS != None:
-            SNRs = DS.SNRs
-            
-        for SNR in SNRs:
-            if DS == None:
-                raw_images,_,labels_1D =  GDFT_Data.Create_Images(numImages, self.numSteps, self.dimensions, self.t0 , self.wavenumberRange, self.numChan, self.numCoherent, self.numIncoherent, SNR,numSteps_simulated=1024*1024,print_flag=False)
-            else:
-                raw_images,_,labels_1D =  DS.get_Data(with_SNR=SNR)
-            prediction = self.process_Images(raw_images,verbose=0)[1]*self.numChan*2-self.numChan
-            errors = prediction-labels_1D
-            rmse = np.sqrt(np.mean(((errors)**2),axis=1))
-            self.RMSEs[SNR].extend(rmse)
-            self.errors[SNR].extend(errors)
 
-            print("SNR: {0:3.2f} RMSE: {1:3.2f} STD: {2:3.2f}".format(SNR,np.mean(rmse),np.std(rmse)))
-
-            corr.append(np.sqrt(np.mean(((labels_1D)**2))))
-            i+=1
-
-        self.standard_dev_delays = np.mean(corr) #alter this?
-
-        #return(np.mean(RMSE,axis=1),np.std(RMSE,axis=1),np.mean(corr))
-    
-
-    def get_RMSE_Data(self):
-        means = []
-        SNRs = []
-        stds = []
-        for SNR in sorted(self.RMSEs.keys()):
-            SNRs.append(SNR)
-            means.append(np.mean(self.RMSEs[SNR]))
-            stds.append(np.std(self.RMSEs[SNR]))
-        
-        return(np.array(means),np.array(SNRs),np.array(stds),self.standard_dev_delays)
-    
-    def plot_RMSE_Data(self,fs=(8,8),corrected=True):
-        means,SNRs,stds,corr = self.get_RMSE_Data()
-        if not corrected or corr == None: corr = 1.0
-        plt.figure(figsize=fs)
-        plt.errorbar(SNRs,means/corr,yerr=stds/corr,capsize=3,elinewidth=0.5,c ="black", ecolor="Black") 
-        plt.xlabel("SNR")
-        plt.ylabel("Deviation")
-
-    def save_Data_to_file(self,path):
-        np.save(path, np.array(dict(self.RMSEs)),allow_pickle=True)
-    
-    def load_Data_from_file(self,path):
-        P = np.load(path,allow_pickle=True)
-        self.RMSEs.update(P.item())
-"""   
     def save_Net(self,filename=None):
         self.M1 = None
         self.M2 = None
@@ -288,13 +234,11 @@ class GDFT_Net():
         print("Saved as: " + self.path)
         print("Remember to reload models")
 
-    def describe_Net(self):
-        print("ToDo")
 
 
     
 
-def UNet_P1 (pretrained_weights = None,input_size = (256,256,1),nN=64):
+def UNet_P1 (pretrained_weights = None,input_size = (256,256,1),nN=64,drop=0.4):
 
     inputs = Input(input_size)
     
@@ -312,34 +256,34 @@ def UNet_P1 (pretrained_weights = None,input_size = (256,256,1),nN=64):
 
     conv4 = Conv2D(nN*8, 3, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal')(pool3)
     conv4 = Conv2D(nN*8, 3, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal')(conv4)
-    drop4 = Dropout(0.5)(conv4)
+    drop4 = Dropout(drop)(conv4)
     pool4 = MaxPooling2D(pool_size=(2, 2))(drop4)
 
     conv5 = Conv2D(nN*16, 3, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal')(pool4)
     conv5 = Conv2D(nN*16, 3, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal')(conv5)
-    drop5 = Dropout(0.5)(conv5)
+    drop5 = Dropout(drop)(conv5)
 
     up6 = Conv2D(nN*8, 2, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal')(UpSampling2D(size = (2,2))(drop5))
     merge6 = concatenate([drop4,up6], axis = 3)
-    drop6 = Dropout(0.4)(merge6)
+    drop6 = Dropout(drop)(merge6)
     conv6 = Conv2D(nN*8, 3, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal')(drop6)
     conv6 = Conv2D(nN*8, 3, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal')(conv6)
 
     up7 = Conv2D(nN*4, 2, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal')(UpSampling2D(size = (2,2))(conv6))
     merge7 = concatenate([conv3,up7], axis = 3)
-    drop7 = Dropout(0.4)(merge7)
+    drop7 = Dropout(drop)(merge7)
     conv7 = Conv2D(nN*4, 3, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal')(drop7)
     conv7 = Conv2D(nN*4, 3, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal')(conv7)
 
     up8 = Conv2D(nN*2, 2, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal')(UpSampling2D(size = (2,2))(conv7))
     merge8 = concatenate([conv2,up8], axis = 3)
-    drop8 = Dropout(0.4)(merge8)
+    drop8 = Dropout(drop)(merge8)
     conv8 = Conv2D(nN*2, 3, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal')(drop8)
     conv8 = Conv2D(nN*2, 3, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal')(conv8)
 
     up9 = Conv2D(nN, 2, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal')(UpSampling2D(size = (2,2))(conv8))
     merge9 = concatenate([conv1,up9], axis = 3)
-    drop9 = Dropout(0.4)(merge9)
+    drop9 = Dropout(drop)(merge9)
     conv9 = Conv2D(nN, 3, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal')(drop9)
     conv9 = Conv2D(nN, 3, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal')(conv9)
     conv9 = Conv2D(2, 3, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal')(conv9)
@@ -359,7 +303,7 @@ def UNet_P1 (pretrained_weights = None,input_size = (256,256,1),nN=64):
     return model
 
 
-def UNet_P2 (pretrained_weights = None,input_size = (256,256,1),nN = 64):
+def UNet_P2 (pretrained_weights = None,input_size = (256,256,1),nN = 64,drop=0.4):
     
     inputs = Input(input_size)
     conv1 = Conv2D(nN, 3, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal')(inputs)
@@ -376,41 +320,41 @@ def UNet_P2 (pretrained_weights = None,input_size = (256,256,1),nN = 64):
 
     conv4 = Conv2D(nN*8, 3, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal')(pool3)
     conv4 = Conv2D(nN*8, 3, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal')(conv4)
-    drop4 = Dropout(0.5)(conv4)
+    drop4 = Dropout(drop)(conv4)
     pool4 = MaxPooling2D(pool_size=(2, 2))(drop4)
 
     conv5 = Conv2D(nN*16, 3, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal')(pool4)
     conv5 = Conv2D(nN*16, 3, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal')(conv5)
-    drop5 = Dropout(0.5)(conv5)
+    drop5 = Dropout(drop)(conv5)
 
     up6 = Conv2D(nN*8, 2, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal')(UpSampling2D(size = (2,2))(drop5))
     merge6 = concatenate([drop4,up6], axis = 3)
-    drop6 = Dropout(0.5)(merge6)
+    drop6 = Dropout(drop)(merge6)
     conv6 = Conv2D(nN*8, 3, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal')(drop6)
     conv6 = Conv2D(nN*8, 3, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal')(conv6)
 
     up7 = Conv2D(nN*4, 2, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal')(UpSampling2D(size = (2,2))(conv6))
     merge7 = concatenate([conv3,up7], axis = 3)
-    drop7 = Dropout(0.5)(merge7)
+    drop7 = Dropout(drop)(merge7)
     conv7 = Conv2D(nN*4, 3, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal')(drop7)
     conv7 = Conv2D(nN*4, 3, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal')(conv7)
 
     up8 = Conv2D(nN*2, 2, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal')(UpSampling2D(size = (2,2))(conv7))
     merge8 = concatenate([conv2,up8], axis = 3)
-    drop8 = Dropout(0.5)(merge8)
+    drop8 = Dropout(drop)(merge8)
     conv8 = Conv2D(nN*2, 3, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal')(drop8)
     conv8 = Conv2D(nN*2, 3, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal')(conv8)
 
     up9 = Conv2D(nN, 2, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal')(UpSampling2D(size = (2,2))(conv8))
     merge9 = concatenate([conv1,up9], axis = 3)
-    drop9 = Dropout(0.5)(merge9)
+    drop9 = Dropout(drop)(merge9)
     conv9 = Conv2D(nN, 3, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal')(drop9)
     conv9 = Conv2D(nN, 3, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal')(conv9)
     conv10 =  Conv2D(2, 3, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal')(conv9)
     conv11 =  Conv2D(1, 3, activation = 'relu', padding = 'same', kernel_initializer = 'he_normal')(conv10)
     
     flatten = Flatten()(conv11)
-    drop = Dropout(0.5)(flatten)
+    drop = Dropout(drop)(flatten)
     
     dense2 = Dense(input_size[1], activation = "sigmoid")(drop)
 

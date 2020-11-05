@@ -226,7 +226,7 @@ class GDFT_Data_Set():
 
     def plot_Image_at_Index(self,i,title="",fs=10,aspect="auto", figsize=(10, 6)):
         """Plots Image and Label at given Index"""
-        fig, axs = plt.subplots(nrows=3, ncols=1, figsize=figsize,sharex=True)
+        _, axs = plt.subplots(nrows=3, ncols=1, figsize=figsize,sharex=True)
         axs[0].imshow(self.Images[i][:,:,0], cmap=plt.get_cmap('gray_r'),origin="lower",aspect=aspect,extent=(0,self.numSteps/self.t0,-self.dmax,self.dmax))
         axs[1].imshow(self.Labels_2D[i][:,:,0], cmap=plt.get_cmap('gray_r'),origin="lower",aspect=aspect,extent=(0,self.numSteps/self.t0,-self.dmax,self.dmax))
         axs[0].set_ylabel("OPD(Wavelengths)",fontsize=fs)

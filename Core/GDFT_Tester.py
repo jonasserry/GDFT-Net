@@ -103,5 +103,3 @@ class GDFT_Net_Tester():
             path = self.Path
         with open(path, 'wb') as output:  
             pickle.dump(self, output, pickle.HIGHEST_PROTOCOL)
-
-
