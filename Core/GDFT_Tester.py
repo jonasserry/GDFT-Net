@@ -8,13 +8,20 @@ from collections import defaultdict
 
 print("Tester Version: 1.02")
 
+def load_tester(path):
+    with open(path, 'rb') as input:
+        tester = pickle.load(input)
+    return(tester)
+
 class GDFT_Net_Tester():
 
-    def __init__(self,Tester_Path,Net_Path):
+    def __init__(self,Tester_Path,Net_Path,dimensions):
         
         self.Path=Tester_Path
         self.Net_Path = Net_Path
         self.Net=None
+        self.version = 1.1
+        self.dimensions=dimensions
 
         self.errors = defaultdict(list)
         self.standard_dev_delays = None
@@ -47,9 +54,6 @@ class GDFT_Net_Tester():
 
         self.standard_dev_delays = np.mean(corr) #alter this?
 
-        #return(np.mean(RMSE,axis=1),np.std(RMSE,axis=1),np.mean(corr))
-    
-
     def get_RMSE_Data(self):
         means = []
         SNRs = []
@@ -73,23 +77,47 @@ class GDFT_Net_Tester():
             stds.append(np.std(err))
         return(np.array(SNRs),np.array(means),np.array(stds))
     
+    def get_error_at_index(self,i):
+        means = []
+        SNRs = []
+        stds = []
+        for SNR in sorted(self.errors.keys()):
+            SNRs.append(SNR)
+            err = np.abs(np.array(self.errors[SNR])[:,i])
+            means.append(np.mean(err))
+            stds.append(np.std(err))
+        return(np.array(SNRs),np.array(means),np.array(stds))
+    
     def get_error_variation_at_SNR(self,SNR):
         means = []
         inds =[]
         stds = []
-        for i in range(self.Net.dimensions[0]):
+        for i in range(self.dimensions[0]):
             inds.append(i)
             err = np.abs(np.array(self.errors[SNR])[:,i])
             means.append(np.mean(err))
             stds.append(np.std(err))
         return(np.array(inds),np.array(means),np.array(stds))
+    
+    def get_max_error(self):
+        means = []
+        SNRs = []
+        stds = []
+        for SNR in sorted(self.errors.keys()):
+            SNRs.append(SNR)
+            rmses = np.max((np.abs(self.errors[SNR])),axis=1)
+            means.append(np.mean(rmses))
+            stds.append(np.std(rmses))
+        
+        return(np.array(SNRs),np.array(means),np.array(stds))
 
     
-    def plot_this_data(self,SNRs,means,stds,fs=(8,8),corr=1):
-        plt.figure(figsize=fs)
-        plt.errorbar(SNRs,means/corr,yerr=stds/corr,capsize=3,elinewidth=0.5,c ="black", ecolor="Black") 
-        plt.xlabel("SNR")
-        plt.ylabel("Deviation")
+    def plot_this_data(self,SNRs,means,stds,fig_size=(8,8),corr=1,xlabel="SNR",ylabel="RMSE",label=None,title=None,fontsize=12):
+        plt.figure(figsize=fig_size)
+        plt.errorbar(SNRs,means/corr,yerr=stds/corr,capsize=3,elinewidth=0.5,c ="black", ecolor="Black",label=label) 
+        plt.title(title,fontsize=fontsize*1.5)
+        plt.xlabel(xlabel,fontsize=fontsize)
+        plt.ylabel(ylabel,fontsize=fontsize)
 
     def save_data_to_file(self,path):
         np.save(path, np.array(dict(self.errors)),allow_pickle=True)
@@ -101,5 +129,8 @@ class GDFT_Net_Tester():
     def save(self,path=None):
         if not path:
             path = self.Path
+        self.Net = None
         with open(path, 'wb') as output:  
             pickle.dump(self, output, pickle.HIGHEST_PROTOCOL)
+        print("Reload Net")
+

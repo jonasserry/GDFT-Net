@@ -11,6 +11,7 @@ from Core import GDFT_Sim as Sim
 
 print("Data Version: 1.61")
 
+
 ###---------------- Image Creation --------------------
 def DownSample(image,dimensions):
     """
@@ -239,10 +240,10 @@ class GDFT_Data_Set():
 
         plt.suptitle(title)
 
-    
-
-
 def load_Data_Set(path):
     with open(path, 'rb') as input:
         Set = pickle.load(input)
     return(Set)
+
+
+
