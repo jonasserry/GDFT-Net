@@ -62,6 +62,12 @@ class GDFT_Net():
 
         print("Remember: Load Models")
 
+    def describe(self):
+        print("Dimensions: {0}x{1}".format(*self.dimensions))
+        print("nN -> P1: {0} | P2: {1}".format(self.P1_nN,self.P2_nN))
+        print("Epochs -->  P1: {0} | P2: {1}".format(self.P1_epochs_trained,self.P2_epochs_trained))
+        print("Min Loss -->  P1: {0} | P2: {1}".format(min(self.P1_val_loss),min(self.P2_val_loss)))
+
     def set_training_params(self,numSteps,t0,numChan,wavenumberRange,numCoherent,numIncoherent,numSkip):
 
         self.numSteps = numSteps
@@ -89,12 +95,16 @@ class GDFT_Net():
         if self.M2 == None:
             self.load_P2_Model()
 
-    def create_P1_Model(self,nN):
+    def create_P1_Model(self,nN,model = None):
         self.P1_nN = nN
         self.P1_val_loss = []
         self.P1_loss = []
         self.P1_epochs_trained = 0
-        self.M1 = UNet_P1(input_size=(self.dimensions[1],self.dimensions[0],1),nN=nN) 
+        if model == None:
+            self.M1 = UNet_P1(input_size=(self.dimensions[1],self.dimensions[0],1),nN=nN) 
+        else:
+            self.M1 = model
+        
     
     def train_P1(self,DS,epochs=10,batch_size=16,val_split=0.2):
         assert self.M1 != None,"No Model Loaded"
@@ -132,13 +142,15 @@ class GDFT_Net():
         plt.imshow(label_2d[:,:,0], cmap=plt.get_cmap('gray_r'),origin="lower",aspect=aspect)
 
     
-    def create_P2_Model(self,nN):
+    def create_P2_Model(self,nN,model = None):
         self.P2_nN = nN
         self.P2_val_loss = []
         self.P2_loss = []
         self.P2_epochs_trained = 0
-
-        self.M2 = UNet_P2(input_size=(self.dimensions[1],self.dimensions[0],1),nN=nN) 
+        if model == None:
+            self.M2 = UNet_P2(input_size=(self.dimensions[1],self.dimensions[0],1),nN=nN) 
+        else:
+            self.M2 = model
     
     def convert_Data_for_P2(self,DS,reload_P1=True):
         """returns shuffled P2 data from given data set"""
@@ -149,12 +161,15 @@ class GDFT_Net():
 
         return(P2_images,(Labels_1D+self.dimensions[1]/2)/self.dimensions[1])
 
-    def train_P2(self,DS,epochs=10,batch_size=16,val_split=0.2):
+    def train_P2(self,DS,epochs=10,batch_size=16,val_split=0.2,save_path = None):
         self.check_if_loaded()
+        
+        if not save_path:
+            save_path = self.M2_path
 
         train_images, train_labels = self.convert_Data_for_P2(DS)
 
-        checkpoint = ModelCheckpoint(self.M2_path,monitor="val_loss", save_best_only=True,save_weights_only=False,verbose=1)
+        checkpoint = ModelCheckpoint(save_path,monitor="val_loss", save_best_only=True,save_weights_only=False,verbose=1)
         callbacks_list = [checkpoint]
         history = self.M2.fit(train_images, train_labels,batch_size=batch_size, epochs=epochs, callbacks=callbacks_list, validation_split=val_split,verbose = 1)
         self.P2_val_loss.extend(history.history['val_loss'])
